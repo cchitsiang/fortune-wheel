@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>幸运转盘 - Lucky Wheel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .wheel-container {
+            position: relative;
+            width: 400px;
+            height: 400px;
+            margin: 0 auto 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            max-width: 100%;
+            height: auto;
+            filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.2));
+        }
+
+        .pointer {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 30px solid #ff6b6b;
+            z-index: 10;
+            filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.2));
+        }
+
+        .button-container {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 15px 40px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .spin-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 8px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .spin-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .spin-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .spin-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .reset-btn {
+            background: #95a5a6;
+            color: white;
+            box-shadow: 0 8px 15px rgba(149, 165, 166, 0.4);
+        }
+
+        .reset-btn:hover {
+            background: #7f8c8d;
+            transform: translateY(-2px);
+            box-shadow: 0 12px 20px rgba(149, 165, 166, 0.6);
+        }
+
+        .result {
+            min-height: 60px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            font-size: 1.3em;
+            color: #333;
+            border: 2px solid #e9ecef;
+        }
+
+        .result.show {
+            animation: popIn 0.5s ease-out;
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            border-color: #ff6b6b;
+            color: #d63031;
+            font-weight: bold;
+        }
+
+        @keyframes popIn {
+            0% {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .emoji {
+            font-size: 1.5em;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎡 幸运转盘 🎡</h1>
+
+        <div class="wheel-container">
+            <div class="pointer"></div>
+            <canvas id="wheelCanvas" width="400" height="400"></canvas>
+        </div>
+
+        <div class="button-container">
+            <button class="spin-btn" id="spinBtn">🎯 开始转盘</button>
+            <button class="reset-btn" id="resetBtn">🔄 重置</button>
+        </div>
+
+        <div class="result" id="result">准备好了吗？点击开始转盘！</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('wheelCanvas');
+        const ctx = canvas.getContext('2d');
+        const spinBtn = document.getElementById('spinBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const resultDiv = document.getElementById('result');
+
+        // List of items
+        const items = [
+            '168红包',
+            '88红包',
+            '一条小裙子',
+            '188红包',
+            '520红包',
+            '99红包',
+            '谢谢惠顾',
+            '谢谢惠顾'
+        ];
+
+        // Colors for each slice
+        const colors = [
+            '#FF6B6B',
+            '#4ECDC4',
+            '#45B7D1',
+            '#FFA07A',
+            '#98D8C8',
+            '#F7DC6F',
+            '#BB8FCE',
+            '#85C1E2'
+        ];
+
+        let isSpinning = false;
+        let currentRotation = 0;
+
+        // Draw the wheel
+        function drawWheel(rotation = 0) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const radius = 180;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const sliceAngle = (2 * Math.PI) / items.length;
+
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.rotate(rotation);
+
+            // Draw slices
+            for (let i = 0; i < items.length; i++) {
+                // Draw slice
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.arc(0, 0, radius, i * sliceAngle, (i + 1) * sliceAngle);
+                ctx.closePath();
+                ctx.fillStyle = colors[i];
+                ctx.fill();
+
+                // Draw border
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Draw text
+                ctx.save();
+                ctx.rotate(i * sliceAngle + sliceAngle / 2);
+                ctx.textAlign = 'right';
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 14px Arial';
+                ctx.fillText(items[i], radius - 30, 5);
+                ctx.restore();
+            }
+
+            // Draw center circle
+            ctx.beginPath();
+            ctx.arc(0, 0, 30, 0, 2 * Math.PI);
+            ctx.fillStyle = 'white';
+            ctx.fill();
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // Draw center text
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('GO', 0, 0);
+
+            ctx.restore();
+        }
+
+        // Spin the wheel
+        function spinWheel() {
+            if (isSpinning) return;
+
+            isSpinning = true;
+            spinBtn.disabled = true;
+            resultDiv.textContent = '转盘转动中...';
+            resultDiv.classList.remove('show');
+
+            // Random winner index
+            const winnerIndex = Math.floor(Math.random() * items.length);
+
+            // Calculate rotation to stop at the winner
+            // The pointer is at the top, so we need to rotate to align the winner
+            const sliceAngle = (360 / items.length);
+            const stopAngle = (winnerIndex * sliceAngle + sliceAngle / 2) % 360;
+
+            // Add extra rotations (5-8 full rotations)
+            const extraRotations = 5 + Math.random() * 3;
+            const totalRotation = extraRotations * 360 + stopAngle;
+
+            // Animate the spin
+            const startTime = Date.now();
+            const duration = 4000; // 4 seconds
+
+            function animate() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                // Easing function for smooth spin
+                const easeProgress = 1 - Math.pow(1 - progress, 3);
+
+                const rotation = (totalRotation * easeProgress) * (Math.PI / 180);
+                currentRotation = rotation;
+                drawWheel(rotation);
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    // Spin complete
+                    isSpinning = false;
+                    spinBtn.disabled = false;
+
+                    // Show result
+                    setTimeout(() => {
+                        resultDiv.textContent = `🎉 恭喜您获得：${items[winnerIndex]} 🎉`;
+                        resultDiv.classList.add('show');
+                    }, 300);
+                }
+            }
+
+            animate();
+        }
+
+        // Reset the wheel
+        function resetWheel() {
+            if (isSpinning) return;
+            currentRotation = 0;
+            drawWheel(0);
+            resultDiv.textContent = '准备好了吗？点击开始转盘！';
+            resultDiv.classList.remove('show');
+        }
+
+        // Event listeners
+        spinBtn.addEventListener('click', spinWheel);
+        resetBtn.addEventListener('click', resetWheel);
+
+        // Initial draw
+        drawWheel();
+    </script>
+</body>
+</html>
