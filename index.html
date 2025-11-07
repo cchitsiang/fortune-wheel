@@ -160,11 +160,88 @@
             font-size: 1.5em;
             margin-right: 10px;
         }
+
+        .toggle-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .toggle-label {
+            font-size: 1em;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 30px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 30px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 24px;
+            width: 24px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: #667eea;
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(30px);
+        }
+
+        .mode-label {
+            font-size: 0.9em;
+            color: #667eea;
+            font-weight: bold;
+            min-width: 80px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🎡 幸运转盘 🎡</h1>
+
+        <div class="toggle-container">
+            <span class="toggle-label">普通奖池</span>
+            <label class="toggle-switch">
+                <input type="checkbox" id="modeToggle">
+                <span class="toggle-slider"></span>
+            </label>
+            <span class="mode-label" id="modeLabel">普通奖池</span>
+        </div>
 
         <div class="wheel-container">
             <div class="pointer"></div>
@@ -185,9 +262,11 @@
         const spinBtn = document.getElementById('spinBtn');
         const resetBtn = document.getElementById('resetBtn');
         const resultDiv = document.getElementById('result');
+        const modeToggle = document.getElementById('modeToggle');
+        const modeLabel = document.getElementById('modeLabel');
 
-        // List of items
-        const items = [
+        // Regular prize items
+        const regularItems = [
             '168红包',
             '88红包',
             '一条小裙子',
@@ -198,8 +277,7 @@
             '谢谢惠顾'
         ];
 
-        // Colors for each slice
-        const colors = [
+        const regularColors = [
             '#FF6B6B',
             '#4ECDC4',
             '#45B7D1',
@@ -210,6 +288,26 @@
             '#85C1E2'
         ];
 
+        // Big prize items
+        const bigPrizeItems = [
+            '999红包',
+            '护肤品',
+            '小项链',
+            '520红包',
+            '1314红包'
+        ];
+
+        const bigPrizeColors = [
+            '#FF6B6B',
+            '#FFD700',
+            '#FF1493',
+            '#00CED1',
+            '#FF69B4'
+        ];
+
+        let isBigPrizeMode = false;
+        let items = regularItems;
+        let colors = regularColors;
         let isSpinning = false;
         let currentRotation = 0;
 
@@ -329,6 +427,33 @@
             if (isSpinning) return;
             currentRotation = 0;
             drawWheel(0);
+            const defaultMsg = isBigPrizeMode ? '准备好了吗？点击开始转盘！' : '准备好了吗？点击开始转盘！';
+            resultDiv.textContent = defaultMsg;
+            resultDiv.classList.remove('show');
+        }
+
+        // Toggle between modes
+        function toggleMode(event) {
+            if (isSpinning) {
+                event.preventDefault();
+                modeToggle.checked = !modeToggle.checked;
+                return;
+            }
+
+            isBigPrizeMode = event.target.checked;
+
+            if (isBigPrizeMode) {
+                items = bigPrizeItems;
+                colors = bigPrizeColors;
+                modeLabel.textContent = '大奖池 💎';
+            } else {
+                items = regularItems;
+                colors = regularColors;
+                modeLabel.textContent = '普通奖池';
+            }
+
+            currentRotation = 0;
+            drawWheel(0);
             resultDiv.textContent = '准备好了吗？点击开始转盘！';
             resultDiv.classList.remove('show');
         }
@@ -336,6 +461,7 @@
         // Event listeners
         spinBtn.addEventListener('click', spinWheel);
         resetBtn.addEventListener('click', resetWheel);
+        modeToggle.addEventListener('change', toggleMode);
 
         // Initial draw
         drawWheel();
